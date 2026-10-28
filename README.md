@@ -14,38 +14,71 @@
 - 工具介面預留 MCP 擴充點；v1 不啟用 MCP
 - 無 Google Fonts、無追蹤腳本、`robots.txt` 全面禁止索引
 
-## 部署
+## 部署（Cloudflare Dashboard / Workers Builds）
 
-需求：Node.js 22+、Cloudflare 帳號、Wrangler。
+需求：Cloudflare 帳號、已推送的 GitHub repo。這個專案是 **Worker + Static Assets**，不是 Pages。
+
+### 1. 建立 Worker 並連接 GitHub
+
+1. Cloudflare Dashboard → **Workers & Pages → Create**
+2. 選 **Workers**，不要選 Pages
+3. 選 **Connect to Git**
+4. 選擇 `scupro/personal-ai`，Branch 選 `main`，Root directory 保持 `/`
+5. Build command 填：
 
 ```bash
-npm install
-npx wrangler login
-
-# 1. 建立 D1（若不需要跨裝置同步可略過，但 wrangler.toml 需移除 DB 綁定）
-npx wrangler d1 create personal-ai
-# 將輸出的 database_id 填入 wrangler.toml
-
-# 2. 套用 migration
-npx wrangler d1 migrations apply personal-ai --remote
-
-# 3. 設定密碼與簽章密鑰
-npx wrangler secret put APP_PASSWORD
-npx wrangler secret put AUTH_SECRET
-# 選用：伺服器端預設 Groq（未建立瀏覽器供應商時使用）
-npx wrangler secret put GROQ_API_KEY
-# 選用：
-npx wrangler secret put TAVILY_API_KEY
-
-# 4. 建置前端並部署
-npm run deploy
+npm ci && npm run build:web
 ```
 
-`AUTH_SECRET` 請使用至少 32 字元的隨機字串，例如：
+6. Deploy command 填：
+
+```bash
+npx wrangler deploy
+```
+
+這時可以直接部署。`wrangler.toml` 的 D1 區塊預設是註解狀態，所以不需要 Database ID；聊天、圖片、登入都能用，但跨裝置同步會顯示為停用。
+
+### 2. 設定 Secrets
+
+Worker → **Settings → Variables and Secrets**，新增：
+
+| 名稱 | 必要性 | 說明 |
+| --- | --- | --- |
+| `APP_PASSWORD` | 必要 | 登入密碼 |
+| `AUTH_SECRET` | 必要 | 至少 32 字元隨機字串 |
+| `GROQ_API_KEY` | 選用 | 伺服器端預設 Groq |
+| `TAVILY_API_KEY` | 選用 | 網頁搜尋 |
+
+`AUTH_SECRET` 可用下列指令產生：
 
 ```bash
 openssl rand -base64 32
 ```
+
+### 3. 之後啟用 D1 同步
+
+第一次部署不需要 D1。要啟用跨裝置同步時：
+
+1. Dashboard → **Storage & Databases → D1 SQL Database → Create**，名稱 `personal-ai`
+2. 進入該 D1 → **Console**，執行 `migrations/0001_init.sql` 的內容
+3. 複製 D1 的 **Database ID**
+4. 編輯 `wrangler.toml`，取消 `[[d1_databases]]` 區塊的註解，填入真實 ID：
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "personal-ai"
+database_id = "你的-Database-ID"
+migrations_dir = "migrations"
+```
+
+5. Commit／push，Workers Builds 會重新部署
+
+啟用後 `/api/me` 會回報 `sync:true`，設定頁的同步功能才會出現。
+
+> 也可以完全不用 Dashboard 的 D1 綁定，改用 `wrangler d1 migrations apply personal-ai --remote`；但 Git 部署仍建議把 ID 寫進 `wrangler.toml`，避免下次部署覆蓋 Dashboard 設定。
+
+### 4. 開啟網站
 
 第一次開啟 `https://<worker>.workers.dev` 會導向 `/login`。輸入 `APP_PASSWORD` 即可。
 
@@ -58,9 +91,10 @@ openssl rand -base64 32
 ```bash
 cp .dev.vars.example .dev.vars
 # 填入 APP_PASSWORD、AUTH_SECRET；可選 TAVILY_API_KEY
-npm run db:migrate:local
 npm run dev
 ```
+
+若要在本機測試 D1 同步，先取消 `wrangler.toml` 的 `[[d1_databases]]` 註解、填入一個本機用的 Database ID，再執行 `npm run db:migrate:local`。不啟用 D1 時，其他功能仍可正常測試。
 
 `.dev.vars` 已被 `.gitignore` 排除，請勿提交。
 

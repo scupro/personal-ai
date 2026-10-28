@@ -1,0 +1,36 @@
+name = "personal-ai"
+main = "src/index.js"
+compatibility_date = "2026-08-16"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+html_handling = "none"
+not_found_handling = "none"
+run_worker_first = true
+
+[observability]
+enabled = true
+
+[vars]
+# APP_ORIGIN is optional. Set it after binding a custom domain, e.g.
+# APP_ORIGIN = "https://ai.example.com"
+SESSION_DAYS = "30"
+
+# Create the database once:
+#   npx wrangler d1 create personal-ai
+# then replace the id below with the value printed by Wrangler.
+[[d1_databases]]
+binding = "DB"
+database_name = "personal-ai"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Secrets (never put these in this file):
+#   npx wrangler secret put APP_PASSWORD
+#   npx wrangler secret put AUTH_SECRET
+#   npx wrangler secret put GROQ_API_KEY     # optional server-side default
+#   npx wrangler secret put TAVILY_API_KEY   # optional
+# Optional default model for the server-side Groq fallback:
+# [vars] GROQ_MODEL = "openai/gpt-oss-120b"

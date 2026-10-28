@@ -1,0 +1,7 @@
+APP_PASSWORD=change-me
+AUTH_SECRET=replace-with-a-long-random-string
+# Optional server-side default provider. A browser provider always wins.
+# GROQ_API_KEY=gsk_...
+# GROQ_MODEL=openai/gpt-oss-120b
+# TAVILY_API_KEY=tvly-...
+SESSION_DAYS=30

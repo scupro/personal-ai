@@ -14,7 +14,7 @@
 - 工具介面預留 MCP 擴充點；v1 不啟用 MCP
 - 無 Google Fonts、無追蹤腳本、`robots.txt` 全面禁止索引
 
-## 部署（Cloudflare Dashboard / Workers Builds）
+## 部署方式一：Cloudflare Dashboard（Workers Builds）
 
 需求：Cloudflare 帳號、已推送的 GitHub repo。這個專案是 **Worker + Static Assets**，不是 Pages。
 
@@ -81,6 +81,42 @@ migrations_dir = "migrations"
 ### 4. 開啟網站
 
 第一次開啟 `https://<worker>.workers.dev` 會導向 `/login`。輸入 `APP_PASSWORD` 即可。
+
+## 部署方式二：Wrangler CLI
+
+這種方式不需要 Dashboard 的 Git 整合，適合從本機直接部署。兩種方式可以並存，但都要使用同一份 `wrangler.toml`。
+
+```bash
+npm install
+npx wrangler login
+
+# 1. 選用：建立 D1 並啟用同步
+npx wrangler d1 create personal-ai
+# 將輸出的 database_id 填入 wrangler.toml，
+# 並取消 [[d1_databases]] 區塊的註解
+npx wrangler d1 migrations apply personal-ai --remote
+
+# 2. 設定 Secrets
+npx wrangler secret put APP_PASSWORD
+npx wrangler secret put AUTH_SECRET
+# 選用：伺服器端預設 Groq
+npx wrangler secret put GROQ_API_KEY
+# 選用：Tavily 網頁搜尋
+npx wrangler secret put TAVILY_API_KEY
+
+# 3. 建置前端並部署
+npm run deploy
+```
+
+如果暫時不啟用 D1，跳過第 1 步即可；`wrangler.toml` 的 D1 區塊保持註解，聊天與圖片功能仍會部署。
+
+`AUTH_SECRET` 請使用至少 32 字元的隨機字串：
+
+```bash
+openssl rand -base64 32
+```
+
+部署後開啟 `https://<worker>.workers.dev`，會導向 `/login`。
 
 ### 自訂網域
 
